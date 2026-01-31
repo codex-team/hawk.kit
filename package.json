@@ -1,0 +1,32 @@
+{
+  "name": "@codexteam/typescript-lib-template",
+  "version": "2.0.0",
+  "description": "A quick start template for a new TypeScript library",
+  "repository": "https://github.com/codex-team/typescript-lib-template.git",
+  "author": "CodeX <team@codex.so>",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "clean": "rimraf -g \"packages/**/dist\" \"packages/**/*.tsbuildinfo\"",
+    "lint": "yarn workspaces foreach -A run lint",
+    "lint:fix": "yarn workspaces foreach -A run lint --fix",
+    "test": "vitest --watch=false",
+    "coverage": "vitest --watch=false --coverage",
+    "preinstall": "npx only-allow yarn"
+  },
+  "devDependencies": {
+    "eslint": "^9.14.0",
+    "eslint-config-codex": "^2.0.3",
+    "rimraf": "^6.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.13.0",
+    "vitest": "^2.1.4"
+  },
+  "packageManager": "yarn@4.5.1"
+}
