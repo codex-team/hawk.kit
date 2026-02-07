@@ -1,9 +1,11 @@
 export { GitHubService } from './service';
 export type {
   GitHubServiceConfig,
-  IssueData,
   GitHubIssue,
+  GitHubUser,
   Installation,
-  Repository
+  OAuthTokens,
+  Repository,
+  ValidateUserTokenResult
 } from './types';
 export { normalizeGitHubPrivateKey } from './normalizePrivateKey';

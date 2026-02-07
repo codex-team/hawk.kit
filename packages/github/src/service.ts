@@ -1,42 +1,74 @@
 import jwt from 'jsonwebtoken';
 import { Octokit } from '@octokit/rest';
 import { exchangeWebFlowCode, refreshToken as refreshOAuthToken } from '@octokit/oauth-methods';
-import { hasValue } from '@hawk.so/utils';
+import { hasValue, TimeMs } from '@hawk.so/utils';
 import { normalizeGitHubPrivateKey } from './normalizePrivateKey';
 import type {
   GitHubServiceConfig,
+  GitHubUser,
   Installation,
   Repository,
   IssueData,
-  GitHubIssue
+  GitHubIssue,
+  OAuthTokens,
+  ValidateUserTokenResult
 } from './types';
-
-/**
- * Milliseconds in one minute
- */
-const MINUTE_MS = 60_000;
 
 /**
  * Buffer time before token expiration to trigger refresh (5 minutes)
  */
 // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-const TOKEN_REFRESH_BUFFER_MS = 5 * MINUTE_MS;
+const TOKEN_REFRESH_BUFFER_MS = 5 * TimeMs.Minute;
+
+/**
+ * Error object with optional HTTP status (e.g. from Octokit request failure).
+ */
+/* eslint-disable-next-line jsdoc/require-jsdoc */
+type ErrorWithStatus = { status?: number };
 
 /**
  * Service for interacting with GitHub API
  */
 export class GitHubService {
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  private static readonly DEFAULT_TIMEOUT = 10000;
+  // eslint-disable-next-line @typescript-eslint/naming-convention, @typescript-eslint/no-magic-numbers
+  private static readonly DEFAULT_TIMEOUT = 10 * TimeMs.Second;
   // eslint-disable-next-line @typescript-eslint/naming-convention
   private static readonly JWT_EXPIRATION_MINUTES = 10;
 
+  /**
+   * GitHub App ID; used to sign JWTs and identify the app in API requests.
+   */
   private readonly appId: string;
+
+  /**
+   * PEM private key for the GitHub App; used to sign JWTs for app and installation auth.
+   */
   private readonly privateKey: string;
+
+  /**
+   * App slug (URL name); used in installation and OAuth URLs (e.g. github.com/apps/{appSlug}/installations/new).
+   */
   private readonly appSlug: string;
+
+  /**
+   * OAuth App client ID; required for exchanging codes and refreshing user tokens.
+   */
   private readonly clientId?: string;
+
+  /**
+   * OAuth App client secret; required for exchanging codes and refreshing user tokens.
+   */
   private readonly clientSecret?: string;
+
+  /**
+   * Base URL of the API; used for OAuth redirect URLs and when not using public GitHub.
+   */
   private readonly apiUrl?: string;
+
+  /**
+   * Whether to emit debug logs.
+   */
+  private readonly logs: boolean;
 
   /**
    * Creates a GitHubService instance.
@@ -57,6 +89,7 @@ export class GitHubService {
     this.clientId = config.clientId;
     this.clientSecret = config.clientSecret;
     this.apiUrl = config.apiUrl;
+    this.logs = config.logs !== false;
   }
 
   /**
@@ -153,7 +186,7 @@ export class GitHubService {
         installation_id: parseInt(installationId, 10),
       });
 
-      console.log('Installation info:', {
+      this.log('Installation info:', {
         id: installationInfo.data.id,
         account: installationInfo.data.account,
         // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -172,7 +205,7 @@ export class GitHubService {
         }
       );
 
-      console.log(`Total repositories fetched: ${repositoriesData.length}`);
+      this.log(`Total repositories fetched: ${repositoriesData.length}`);
 
       const repositories = repositoriesData.map(repo => ({
         id: repo.id.toString(),
@@ -281,17 +314,22 @@ export class GitHubService {
       `;
 
       /** GraphQL response shape for repository + issue + suggestedActors query. */
-      /* eslint-disable jsdoc/require-jsdoc */
       type RepoInfoGraphQLResponse = {
+        /* eslint-disable jsdoc/require-jsdoc */
         repository?: {
           id: string;
           issue?: { id: string };
           suggestedActors: {
-            nodes: Array<{ login: string; __typename?: string; id?: string }>;
+            nodes: Array<{
+              login: string;
+              // eslint-disable-next-line @typescript-eslint/naming-convention
+              __typename?: string;
+              id?: string;
+            }>;
           };
         };
+        /* eslint-enable jsdoc/require-jsdoc */
       };
-      /* eslint-enable jsdoc/require-jsdoc */
 
       const repoInfo = await octokit.graphql<RepoInfoGraphQLResponse>(repoInfoQuery, {
         owner,
@@ -299,7 +337,7 @@ export class GitHubService {
         issueNumber,
       });
 
-      console.log('[GitHub API] Repository info query response:', JSON.stringify(repoInfo, null, 2));
+      this.log('[GitHub API] Repository info query response:', JSON.stringify(repoInfo, null, 2));
 
       const repositoryId = repoInfo?.repository?.id;
       const issueId = repoInfo?.repository?.issue?.id;
@@ -313,16 +351,31 @@ export class GitHubService {
       }
 
       /** Node in suggestedActors (login, optional __typename and id). */
-      /* eslint-disable-next-line jsdoc/require-jsdoc */
-      type SuggestedActorNode = { login: string; __typename?: string; id?: string };
+      /* eslint-disable jsdoc/require-jsdoc */
+      type SuggestedActorNode = {
+        login: string;
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        __typename?: string;
+        id?: string ;
+      };
+      /* eslint-enable jsdoc/require-jsdoc */
+
       let copilotBot = (repoInfo?.repository?.suggestedActors?.nodes ?? []).find(
         (node: SuggestedActorNode) => node.login === 'copilot-swe-agent'
       );
 
-      console.log('[GitHub API] Copilot bot found in suggestedActors:', copilotBot ? { login: copilotBot.login, id: copilotBot.id } : 'not found');
+      this.log(
+        '[GitHub API] Copilot bot found in suggestedActors:',
+        copilotBot
+          ? {
+              login: copilotBot.login,
+              id: copilotBot.id,
+            }
+          : 'not found'
+      );
 
       if (!hasValue(copilotBot) || !hasValue(copilotBot?.id)) {
-        console.log('[GitHub API] Trying to get Copilot bot directly by login...');
+        this.log('[GitHub API] Trying to get Copilot bot directly by login...');
 
         try {
           const copilotBotQuery = `
@@ -338,7 +391,12 @@ export class GitHubService {
           /** GraphQL response shape for user(login) query. */
           /* eslint-disable jsdoc/require-jsdoc */
           type CopilotUserInfoGraphQLResponse = {
-            user?: { id: string; login: string; __typename?: string };
+            user?: {
+              id: string;
+              login: string;
+              // eslint-disable-next-line @typescript-eslint/naming-convention
+              __typename?: string;
+            };
           };
           /* eslint-enable jsdoc/require-jsdoc */
 
@@ -346,7 +404,7 @@ export class GitHubService {
             login: 'copilot-swe-agent',
           });
 
-          console.log('[GitHub API] Direct Copilot bot query response:', JSON.stringify(copilotUserInfo, null, 2));
+          this.log('[GitHub API] Direct Copilot bot query response:', JSON.stringify(copilotUserInfo, null, 2));
 
           if (hasValue(copilotUserInfo?.user?.id)) {
             copilotBot = {
@@ -355,7 +413,7 @@ export class GitHubService {
             };
           }
         } catch (directQueryError) {
-          console.log('[GitHub API] Failed to get Copilot bot directly:', directQueryError);
+          this.log('[GitHub API] Failed to get Copilot bot directly:', directQueryError);
         }
       }
 
@@ -363,7 +421,10 @@ export class GitHubService {
         throw new Error('Copilot coding agent (copilot-swe-agent) is not available for this repository');
       }
 
-      console.log('[GitHub API] Using Copilot bot:', { login: copilotBot.login, id: copilotBot.id });
+      this.log('[GitHub API] Using Copilot bot:', {
+        login: copilotBot.login,
+        id: copilotBot.id,
+      });
 
       const assignCopilotMutation = `
         mutation($issueId: ID!, $assigneeIds: [ID!]!) {
@@ -413,7 +474,7 @@ export class GitHubService {
         assigneeIds: [copilotBot.id],
       });
 
-      console.log('[GitHub API] Assign Copilot mutation response:', JSON.stringify(response, null, 2));
+      this.log('[GitHub API] Assign Copilot mutation response:', JSON.stringify(response, null, 2));
 
       const assignable = response?.addAssigneesToAssignable?.assignable;
 
@@ -423,14 +484,15 @@ export class GitHubService {
 
       /* eslint-disable-next-line jsdoc/require-jsdoc */
       const assignedLogins = assignable.assignees?.nodes?.map((n: { login: string }) => n.login) || [];
-      console.log(`[GitHub API] Issue assignees after mutation:`, assignedLogins);
+
+      this.log(`[GitHub API] Issue assignees after mutation:`, assignedLogins);
 
       const assignedNumber = assignable.number;
 
       if (assignedLogins.includes('copilot-swe-agent')) {
-        console.log(`[GitHub API] Successfully assigned Copilot to issue #${assignedNumber}`);
+        this.log(`[GitHub API] Successfully assigned Copilot to issue #${assignedNumber}`);
       } else {
-        console.log(`[GitHub API] Copilot assignment mutation completed for issue #${assignedNumber}, but assignees list not yet updated in response`);
+        this.log(`[GitHub API] Copilot assignment mutation completed for issue #${assignedNumber}, but assignees list not yet updated in response`);
       }
     } catch (error) {
       throw new Error(`Failed to assign Copilot: ${error instanceof Error ? error.message : String(error)}`);
@@ -452,12 +514,7 @@ export class GitHubService {
       accessTokenExpiresAt: Date | null;
       refreshTokenExpiresAt: Date | null;
     },
-    onRefresh?: (newTokens: {
-      accessToken: string;
-      refreshToken: string;
-      expiresAt: Date | null;
-      refreshTokenExpiresAt: Date | null;
-    }) => Promise<void>
+    onRefresh?: (newTokens: OAuthTokens) => Promise<void>
     /* eslint-enable jsdoc/require-jsdoc */
   ): Promise<string> {
     const now = new Date();
@@ -506,7 +563,7 @@ export class GitHubService {
     refreshToken: string;
     expiresAt: Date | null;
     refreshTokenExpiresAt: Date | null;
-    user: { id: number; login: string };
+    user: GitHubUser;
   }> {
   /* eslint-enable jsdoc/require-jsdoc */
     if (!hasValue(this.clientId) || !hasValue(this.clientSecret)) {
@@ -552,7 +609,10 @@ export class GitHubService {
         refreshToken,
         expiresAt,
         refreshTokenExpiresAt,
-        user: { id: userData.id, login: userData.login },
+        user: {
+          id: userData.id,
+          login: userData.login,
+        },
       };
     } catch (error) {
       throw new Error(`Failed to exchange OAuth code for token: ${error instanceof Error ? error.message : String(error)}`);
@@ -564,22 +624,32 @@ export class GitHubService {
    * @param accessToken - GitHub user access token (e.g. from OAuth).
    * @returns valid, optional user (id, login), and status ('active' or 'revoked').
    */
-  /* eslint-disable jsdoc/require-jsdoc */
-  public async validateUserToken(accessToken: string): Promise<{ valid: boolean; user?: { id: number; login: string }; status: 'active' | 'revoked' }> {
+  public async validateUserToken(accessToken: string): Promise<ValidateUserTokenResult> {
     try {
       const octokit = this.createOctokit(accessToken);
       const { data: userData } = await octokit.rest.users.getAuthenticated();
 
       return {
         valid: true,
-        user: { id: userData.id, login: userData.login },
+        user: {
+          id: userData.id,
+          login: userData.login,
+        },
         status: 'active',
       };
     } catch (error: unknown) {
-      const err = error as { status?: number };
-      /* eslint-enable jsdoc/require-jsdoc */
-      if (err?.status === 401 || err?.status === 403) {
-        return { valid: false, status: 'revoked' };
+      const err = error as ErrorWithStatus;
+
+      /** HTTP 401 Unauthorized */
+      const HTTP_UNAUTHORIZED = 401;
+      /** HTTP 403 Forbidden */
+      const HTTP_FORBIDDEN = 403;
+
+      if (err?.status === HTTP_UNAUTHORIZED || err?.status === HTTP_FORBIDDEN) {
+        return {
+          valid: false,
+          status: 'revoked',
+        };
       }
       throw new Error(`Failed to validate user token: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -590,14 +660,7 @@ export class GitHubService {
    * @param refreshToken - Current refresh token.
    * @returns New access token, refresh token, and expiry dates.
    */
-  /* eslint-disable jsdoc/require-jsdoc */
-  public async refreshUserToken(refreshToken: string): Promise<{
-    accessToken: string;
-    refreshToken: string;
-    expiresAt: Date | null;
-    refreshTokenExpiresAt: Date | null;
-  }> {
-  /* eslint-enable jsdoc/require-jsdoc */
+  public async refreshUserToken(refreshToken: string): Promise<OAuthTokens> {
     if (!hasValue(this.clientId) || !hasValue(this.clientSecret)) {
       throw new Error('GITHUB_APP_CLIENT_ID and GITHUB_APP_CLIENT_SECRET are required for token refresh');
     }
@@ -634,6 +697,16 @@ export class GitHubService {
   }
 
   /**
+   * Logs a message when logs are enabled.
+   * @param args - Arguments passed to console.log.
+   */
+  private log(...args: unknown[]): void {
+    if (this.logs) {
+      console.log('[GitHubService]', ...args);
+    }
+  }
+
+  /**
    * Creates an Octokit client with the given auth token and default timeout/headers.
    * @param auth - GitHub token (JWT or user access token).
    * @returns Octokit instance.
@@ -657,11 +730,11 @@ export class GitHubService {
    */
   private createJWT(): string {
     const privateKey = this.privateKey;
-    const now = Math.floor(Date.now() / 1000);
+    const now = Math.floor(Date.now() / TimeMs.Second);
 
     const payload = {
-      iat: now - 60,
-      exp: now + GitHubService.JWT_EXPIRATION_MINUTES * 60,
+      iat: now - TimeMs.Minute / TimeMs.Second,
+      exp: now + GitHubService.JWT_EXPIRATION_MINUTES * (TimeMs.Minute / TimeMs.Second),
       iss: this.appId,
     };
 
@@ -682,6 +755,7 @@ export class GitHubService {
         // eslint-disable-next-line @typescript-eslint/naming-convention
         installation_id: parseInt(installationId, 10),
       });
+
       return data.token;
     } catch (error) {
       throw new Error(`Failed to create installation token: ${error instanceof Error ? error.message : String(error)}`);

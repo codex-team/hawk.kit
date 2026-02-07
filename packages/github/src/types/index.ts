@@ -53,9 +53,25 @@ export type Installation = {
     type: string;
   };
   /** Target type of the installation (e.g. "User", "Organization"). */
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   target_type: string;
   /** Permissions granted to the app (scope -> access level). */
   permissions: Record<string, string>;
+};
+
+/**
+ * OAuth access and refresh tokens with expiry dates.
+ * Returned by refreshUserToken and passed to onRefresh when getValidAccessToken refreshes tokens.
+ */
+export type OAuthTokens = {
+  /** GitHub user access token for API calls. */
+  accessToken: string;
+  /** Refresh token used to obtain a new access token when it expires. */
+  refreshToken: string;
+  /** When the access token expires, or null if unknown. */
+  expiresAt: Date | null;
+  /** When the refresh token expires, or null if unknown. */
+  refreshTokenExpiresAt: Date | null;
 };
 
 /**
@@ -75,4 +91,28 @@ export interface GitHubServiceConfig {
   clientSecret?: string;
   /** Base URL of the API (e.g. for GitHub Enterprise). */
   apiUrl?: string;
+  /** Whether to emit debug logs. Defaults to true. */
+  logs?: boolean;
 }
+
+/**
+ * Fields that we use from the GitHub user identity.
+ */
+export type GitHubUser = {
+  /** GitHub user ID. */
+  id: number;
+  /** GitHub username (login). */
+  login: string;
+};
+
+/**
+ * Whether a user access token is still valid and the authenticated user (or revocation status).
+ */
+export type ValidateUserTokenResult = {
+  /** True if the token is valid and accepted by GitHub. */
+  valid: boolean;
+  /** Authenticated user (id, login) when valid. */
+  user?: GitHubUser;
+  /** 'active' when valid, 'revoked' when token was rejected (e.g. 401/403). */
+  status: 'active' | 'revoked';
+};

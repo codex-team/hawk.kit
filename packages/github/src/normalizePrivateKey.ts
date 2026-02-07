@@ -1,6 +1,7 @@
+import { Buffer } from 'buffer';
+
 /**
  * Normalize and validate GitHub App private key.
- *
  * @param rawPrivateKey - raw value from env (GITHUB_PRIVATE_KEY)
  * @returns PEM-encoded private key string
  */
@@ -11,8 +12,8 @@ export function normalizeGitHubPrivateKey(rawPrivateKey: string): string {
   let privateKey = rawPrivateKey.trim();
 
   if (
-    (privateKey.startsWith('"') && privateKey.endsWith('"')) ||
-    (privateKey.startsWith('\'') && privateKey.endsWith('\''))
+    (privateKey.startsWith('"') && privateKey.endsWith('"'))
+    || (privateKey.startsWith('\'') && privateKey.endsWith('\''))
   ) {
     privateKey = privateKey.slice(1, -1);
   }
