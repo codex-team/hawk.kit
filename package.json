@@ -1,11 +1,10 @@
 {
   "name": "@hawk.so/kit",
   "private": true,
-  "version": "2.0.0",
-  "description": "A quick start template for a new TypeScript library",
-  "repository": "https://github.com/codex-team/typescript-lib-template.git",
+  "description": "Set of utils for Hawk services development",
+  "repository": "https://github.com/codex-team/hawk.kit",
   "author": "CodeX <team@codex.so>",
-  "license": "MIT",
+  "license": "AGPL-3.0",
   "engines": {
     "node": ">=22.0.0"
   },
