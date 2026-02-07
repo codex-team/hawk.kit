@@ -1,32 +1,40 @@
-# @codexteam/typescript-lib-template
-A quick start template for a new TypeScript library
+# @hawk.so/kit
 
-[![NPM version](https://img.shields.io/npm/v/@codexteam/typescript-lib-template?style=flat-square)](https://www.npmjs.com/package/@codexteam/typescript-lib-template)
-[![License](https://img.shields.io/npm/l/@codexteam/typescript-lib-template?style=flat-square)](https://www.npmjs.com/package/@codexteam/typescript-lib-template)
+Set of packages for Hawk services development (monorepo).
 
-## Features 
+## Packages
 
-- 💄 Yarn 4
-- 🛍️ Yarn Workspaces
-- 💎 ESLint 9 with [eslint-config-codex](http://github.com/codex-team/eslint-config/)
-- 🥃 Typescript 5
-- 🥊 npx only-allow yarn
-- 🌶️ Tests with [Vitest](https://vitest.dev)
-- 🍀 GitHub Actions for test/lint/build/publish purposes
+- **[@hawk.so/utils](./packages/utils)** — shared utilities for Hawk packages.
+  - `hasValue` — check that a value is not `undefined`, `null`, or empty string.
+  - `TimeMs` — enum of time intervals in milliseconds (Second, Minute, Hour, Day, Week).
 
-## How to use
-1. Click [here](https://github.com/codex-team/typescript-lib-template/generate) and fill setting for new repository
-2. Update root package `package.json`, change main package name
-3. Update "core" package `package.json`:
-    1. Change `name`
-    2. Adjust `main`, `types`, `exports`
-5. Change name of `packages/core` to your main package name
-5. Go to `packages/utils` and adjust its name or remove the package if you don't need it
-3. Change NPM package scope from [workflow file](./.github/workflows/main.yml) or remove it
-4. Fill `NPM_TOKEN` and `CODEX_BOT_WEBHOOK` secrets in your repository or organization settings
-5. Start writing your new library!
+- **[@hawk.so/github-sdk](./packages/github)** — GitHub API client for Hawk.
+  - `GitHubService` — GitHub App (installation, installations, repositories).
+  - Create and manage issues, assign Copilot to an issue.
+  - OAuth: exchange code for token, refresh token, validate user token.
+  - `normalizeGitHubPrivateKey` — normalize PEM key from env (base64, quotes, `\n`).
+  - Types: `GitHubServiceConfig`, `OAuthTokens`, `GitHubUser`, `ValidateUserTokenResult`, `Repository`, `Installation`, `GitHubIssue`, `IssueData`.
 
-# About CodeX
+## Requirements
+
+- Node.js >= 22.0.0
+- Yarn 4 (Corepack enabled in repo)
+
+## Commands
+
+```bash
+yarn install   # install dependencies
+yarn build     # build all packages
+yarn lint      # lint (build + eslint across packages)
+yarn test      # run tests
+yarn clean     # remove dist and tsbuildinfo
+```
+
+## License
+
+AGPL-3.0
+
+## About CodeX
 
 <img align="right" width="120" height="120" src="https://codex.so/public/app/img/codex-logo.svg" hspace="50">
 

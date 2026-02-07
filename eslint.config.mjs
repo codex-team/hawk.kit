@@ -10,6 +10,14 @@ const __dirname = path.dirname(__filename);
 export default [
   ...CodeX,
   ...EslintTestsConfig,
+  /* n/no-missing-import resolves from file dir and misses workspace deps; TypeScript validates imports via projectService */
+  {
+    name: 'codex-lib-ts-workspace-resolve',
+    files: ['packages/**/*.ts'],
+    rules: {
+      'n/no-missing-import': 'off',
+    },
+  },
   {
     name: 'codex-lib-ts',
     ignores: [
@@ -25,8 +33,8 @@ export default [
     languageOptions: {
       parser: TsParser,
       parserOptions: {
-        project: path.resolve(__dirname, 'tsconfig.json'),
-        tsconfigRootDir: './',
+        project: path.join(__dirname, 'tsconfig.eslint.json'),
+        tsconfigRootDir: __dirname,
         sourceType: 'module',
       },
     },
