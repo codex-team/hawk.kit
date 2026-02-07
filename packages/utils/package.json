@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Shared utilities for Hawk packages",
   "author": "CodeX <team@codex.so>",
-  "license": "MIT",
+  "license": "AGPL-3.0",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
