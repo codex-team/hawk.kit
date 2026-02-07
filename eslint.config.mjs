@@ -33,7 +33,7 @@ export default [
     languageOptions: {
       parser: TsParser,
       parserOptions: {
-        projectService: true,
+        project: path.join(__dirname, 'tsconfig.eslint.json'),
         tsconfigRootDir: __dirname,
         sourceType: 'module',
       },
