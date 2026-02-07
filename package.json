@@ -1,5 +1,6 @@
 {
-  "name": "@codexteam/typescript-lib-template",
+  "name": "@hawk.so/kit",
+  "private": true,
   "version": "2.0.0",
   "description": "A quick start template for a new TypeScript library",
   "repository": "https://github.com/codex-team/typescript-lib-template.git",
@@ -13,8 +14,8 @@
   ],
   "scripts": {
     "clean": "rimraf -g \"packages/**/dist\" \"packages/**/*.tsbuildinfo\"",
-    "lint": "yarn workspaces foreach -A run lint",
-    "lint:fix": "yarn workspaces foreach -A run lint --fix",
+    "lint": "yarn workspaces foreach -At run build && yarn workspaces foreach -A run lint",
+    "lint:fix": "yarn workspaces foreach -At run build && yarn workspaces foreach -A run lint --fix",
     "test": "vitest --watch=false",
     "coverage": "vitest --watch=false --coverage",
     "preinstall": "npx only-allow yarn"
