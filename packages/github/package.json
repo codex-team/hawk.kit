@@ -1,6 +1,6 @@
 {
   "name": "@hawk.so/github-sdk",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "GitHub API client for Hawk (GitHub App, Issues, OAuth)",
   "author": "CodeX <team@codex.so>",
   "license": "AGPL-3.0-only",
@@ -25,7 +25,7 @@
     "test:dev": "vitest"
   },
   "dependencies": {
-    "@hawk.so/utils": "workspace:*",
+    "@hawk.so/utils": "^1.0.0",
     "@octokit/oauth-methods": "^4.0.0",
     "@octokit/rest": "^22.0.1",
     "@octokit/types": "^16.0.0",

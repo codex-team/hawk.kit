@@ -278,7 +278,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@hawk.so/github-sdk@workspace:packages/github"
   dependencies:
-    "@hawk.so/utils": "workspace:*"
+    "@hawk.so/utils": "npm:^1.0.0"
     "@octokit/oauth-methods": "npm:^4.0.0"
     "@octokit/rest": "npm:^22.0.1"
     "@octokit/types": "npm:^16.0.0"
@@ -305,7 +305,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@hawk.so/utils@workspace:*, @hawk.so/utils@workspace:packages/utils":
+"@hawk.so/utils@npm:^1.0.0, @hawk.so/utils@workspace:packages/utils":
   version: 0.0.0-use.local
   resolution: "@hawk.so/utils@workspace:packages/utils"
   dependencies:
