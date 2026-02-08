@@ -1,61 +1,65 @@
 name: CI
 
-on: push
+on:
+  push:
 
 jobs:
-  lint-test-build-publish:
-    runs-on: ubuntu-20.04
+  check-lint-test-build:
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable Corepack and install dependencies
+        run: |
+          corepack enable
+          corepack prepare yarn@4.5.1 --activate
+          yarn install
+
+      - name: Lint
+        run: yarn lint
+
+      - name: Test
+        run: yarn test
+
+      - name: Build
+        run: yarn build
+
+  publish:
+    needs: check-lint-test-build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           registry-url: 'https://registry.npmjs.org'
-          scope: '@codexteam'
+          scope: '@hawk.so'
 
-      - name: Restore Yarn cache
-        uses: actions/cache@v3
-        id: yarn-cache
-        with:
-          path: .yarn/cache
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-yarn-
+      - name: Enable Corepack and install dependencies
+        run: |
+          corepack enable
+          corepack prepare yarn@4.5.1 --activate
+          yarn install
 
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Use specified Yarn version
-        run: corepack prepare yarn@4.5.1 --activate
-
-      - name: Install dependecies
-        run: yarn install
-
-      - name: Test Eslint
-        run: yarn lint
-
-      - name: Run unit tests
-        run: yarn test
-
-      - name: Build library
+      - name: Build
         run: yarn build
 
-      - name: Publish library
-        if: ${{ github.ref == 'refs/heads/main' }}
-        run: yarn publish --access=public
+      - name: Publish
+        run: |
+          yarn workspace @hawk.so/utils exec npm publish --access public
+          yarn workspace @hawk.so/github-sdk exec npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-  notify:
-    needs: lint-test-build-publish
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
 
       - name: Get package info
         id: package
