@@ -33,42 +33,4 @@ jobs:
   publish:
     needs: check-lint-test-build
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          registry-url: 'https://registry.npmjs.org'
-          scope: '@hawk.so'
-
-      - name: Enable Corepack and install dependencies
-        run: |
-          corepack enable
-          corepack prepare yarn@4.5.1 --activate
-          yarn install
-
-      - name: Build
-        run: yarn build
-
-      - name: Publish
-        run: |
-          yarn workspace @hawk.so/utils exec npm publish --access public
-          yarn workspace @hawk.so/github-sdk exec npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Get package info
-        id: package
-        uses: codex-team/action-nodejs-package-info@v1
-
-      - name: Send a message
-        uses: codex-team/action-codexbot-notify@v1
-        with:
-          webhook: ${{ secrets.CODEX_BOT_WEBHOOK_HAWK }}
-          message: '📦 [${{ steps.package.outputs.name }}](${{ steps.package.outputs.npmjs-link }}) ${{ steps.package.outputs.version }} was published'
-          parse_mode: 'markdown'
-          disable_web_page_preview: true
+    uses: ./.github/workflows/publish.yml

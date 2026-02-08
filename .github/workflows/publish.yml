@@ -1,0 +1,80 @@
+name: Publish
+
+on:
+  workflow_call:
+
+jobs:
+  publish:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed packages
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          base: ${{ github.event.before || 'HEAD^' }}
+          filters: |
+            utils:
+              - 'packages/utils/**'
+            github:
+              - 'packages/github/**'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          registry-url: 'https://registry.npmjs.org'
+          scope: '@hawk.so'
+
+      - name: Enable Corepack and install dependencies
+        run: |
+          corepack enable
+          corepack prepare yarn@4.5.1 --activate
+          yarn install
+
+      - name: Build
+        run: yarn build
+
+      - name: Publish
+        run: |
+          if [ "${{ steps.changes.outputs.utils }}" == "true" ]; then
+            yarn workspace @hawk.so/utils exec npm publish --access public
+          fi
+          if [ "${{ steps.changes.outputs.github }}" == "true" ]; then
+            yarn workspace @hawk.so/github-sdk exec npm publish --access public
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Get published package versions
+        if: steps.changes.outputs.utils == 'true' || steps.changes.outputs.github == 'true'
+        id: versions
+        run: |
+          if [ "${{ steps.changes.outputs.utils }}" == "true" ]; then
+            echo "utils_version=$(node -p "require('./packages/utils/package.json').version")" >> $GITHUB_OUTPUT
+          fi
+          if [ "${{ steps.changes.outputs.github }}" == "true" ]; then
+            echo "github_version=$(node -p "require('./packages/github/package.json').version")" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Notify @hawk.so/utils published
+        if: steps.changes.outputs.utils == 'true'
+        uses: codex-team/action-codexbot-notify@v1
+        with:
+          webhook: ${{ secrets.CODEX_BOT_WEBHOOK_HAWK }}
+          message: '📦 [@hawk.so/utils](https://www.npmjs.com/package/@hawk.so/utils) ${{ steps.versions.outputs.utils_version }} was published'
+          parse_mode: 'markdown'
+          disable_web_page_preview: true
+
+      - name: Notify @hawk.so/github-sdk published
+        if: steps.changes.outputs.github == 'true'
+        uses: codex-team/action-codexbot-notify@v1
+        with:
+          webhook: ${{ secrets.CODEX_BOT_WEBHOOK_HAWK }}
+          message: '📦 [@hawk.so/github-sdk](https://www.npmjs.com/package/@hawk.so/github-sdk) ${{ steps.versions.outputs.github_version }} was published'
+          parse_mode: 'markdown'
+          disable_web_page_preview: true
