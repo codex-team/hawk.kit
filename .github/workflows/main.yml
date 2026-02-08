@@ -3,27 +3,17 @@ name: CI
 on: push
 
 jobs:
-  lint-test-build-publish:
-    runs-on: ubuntu-20.04
+  check-lint-test-build:
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
-          registry-url: 'https://registry.npmjs.org'
-          scope: '@codexteam'
-
-      - name: Restore Yarn cache
-        uses: actions/cache@v3
-        id: yarn-cache
-        with:
-          path: .yarn/cache
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-yarn-
+          cache: 'yarn'
 
       - name: Enable Corepack
         run: corepack enable
@@ -31,31 +21,52 @@ jobs:
       - name: Use specified Yarn version
         run: corepack prepare yarn@4.5.1 --activate
 
-      - name: Install dependecies
+      - name: Install dependencies
         run: yarn install
 
-      - name: Test Eslint
+      - name: Lint
         run: yarn lint
 
-      - name: Run unit tests
+      - name: Test
         run: yarn test
 
-      - name: Build library
+      - name: Build
         run: yarn build
 
-      - name: Publish library
-        if: ${{ github.ref == 'refs/heads/main' }}
-        run: yarn publish --access=public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-  notify:
-    needs: lint-test-build-publish
+  publish:
+    needs: ci
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: 'yarn'
+          registry-url: 'https://registry.npmjs.org'
+          scope: '@hawk.so'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Use specified Yarn version
+        run: corepack prepare yarn@4.5.1 --activate
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Build
+        run: yarn build
+
+      - name: Publish
+        run: |
+          yarn workspace @hawk.so/utils exec npm publish --access public
+          yarn workspace @hawk.so/github-sdk exec npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Get package info
         id: package
