@@ -1,6 +1,6 @@
 {
   "name": "@hawk.so/github-sdk",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "GitHub API client for Hawk (GitHub App, Issues, OAuth)",
   "author": "CodeX <team@codex.so>",
   "license": "AGPL-3.0-only",

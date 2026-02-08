@@ -4,6 +4,7 @@ export type {
   GitHubIssue,
   GitHubUser,
   Installation,
+  IssueData,
   OAuthTokens,
   Repository,
   ValidateUserTokenResult
