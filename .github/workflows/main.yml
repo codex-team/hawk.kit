@@ -15,16 +15,12 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
-          cache: 'yarn'
 
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Use specified Yarn version
-        run: corepack prepare yarn@4.5.1 --activate
-
-      - name: Install dependencies
-        run: yarn install
+      - name: Enable Corepack and install dependencies
+        run: |
+          corepack enable
+          corepack prepare yarn@4.5.1 --activate
+          yarn install
 
       - name: Lint
         run: yarn lint
@@ -47,18 +43,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-          cache: 'yarn'
           registry-url: 'https://registry.npmjs.org'
           scope: '@hawk.so'
 
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Use specified Yarn version
-        run: corepack prepare yarn@4.5.1 --activate
-
-      - name: Install dependencies
-        run: yarn install
+      - name: Enable Corepack and install dependencies
+        run: |
+          corepack enable
+          corepack prepare yarn@4.5.1 --activate
+          yarn install
 
       - name: Build
         run: yarn build
