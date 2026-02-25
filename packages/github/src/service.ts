@@ -136,10 +136,15 @@ export class GitHubService {
         installation_id: parseInt(installationId, 10),
       });
 
+      let accountId = 0;
       let accountLogin = '';
       let accountType = '';
 
       if (data.account) {
+        if ('id' in data.account) {
+          accountId = data.account.id;
+        }
+
         if ('login' in data.account) {
           accountLogin = data.account.login;
           accountType = 'login' in data.account && 'type' in data.account ? data.account.type : 'User';
@@ -152,6 +157,7 @@ export class GitHubService {
       return {
         id: data.id,
         account: {
+          id: accountId,
           login: accountLogin,
           type: accountType,
         },

@@ -47,6 +47,8 @@ export type Installation = {
   id: number;
   /** Account where the app is installed. */
   account: {
+    /** GitHub account ID. */
+    id: number;
     /** GitHub username or org login. */
     login: string;
     /** Account type (e.g. "User", "Organization"). */
