@@ -160,6 +160,7 @@ describe('GitHubService', () => {
       expect(result).toEqual({
         id: 12345,
         account: {
+          id: 1,
           login: 'octocat',
           type: 'User',
         },
@@ -203,6 +204,7 @@ describe('GitHubService', () => {
       expect(result).toEqual({
         id: 12345,
         account: {
+          id: 1,
           login: 'my-org',
           type: 'Organization',
         },
